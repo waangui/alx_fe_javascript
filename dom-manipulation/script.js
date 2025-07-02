@@ -123,16 +123,16 @@ function importFromJsonFile(event) {
     fileReader.onload = function(event) {
         try {
             const importedQuotes = JSON.parse(event.target.result);
-            if (Array.isArray(importedQuotes) && importedQuotes.length > 0) {
-                quotes.push(...importedQuotes);
+            if (Array.isArray(importedQuotes)) {
+                quotes = [...quotes, ...importedQuotes];
                 saveQuotes();
                 showRandomQuote();
                 alert(`Successfully imported ${importedQuotes.length} quotes!`);
             } else {
-                alert('The file doesn\'t contain valid quotes!');
+                alert('Invalid format');
             }
-        } catch (e) {
-            alert('Error reading file: ' + e.message);
+        } catch (error) {
+            alert('Error reading file: ' + error.message);
         }
         // Reset file input
         event.target.value = '';
