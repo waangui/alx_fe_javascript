@@ -19,44 +19,51 @@ function showRandomQuote() {
 }
 
 function createAddQuoteForm() {
-  console.log("Add quote form is ready");
+    // Create form elements
+    const formContainer = document.createElement('div');
+    formContainer.id = 'addQuoteForm';
+    
+    const heading = document.createElement('h3');
+    heading.textContent = 'Add Your Own Quote';
+    
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.id = 'newQuoteText';
+    textInput.placeholder = 'Enter quote text';
+    
+    const categoryInput = document.createElement('input');
+    categoryInput.type = 'text';
+    categoryInput.id = 'newQuoteCategory';
+    categoryInput.placeholder = 'Enter category';
+    
+    const addButton = document.createElement('button');
+    addButton.textContent = 'Add Quote';
+    
+    // Add event listener to button
+    addButton.addEventListener('click', function() {
+        const text = textInput.value.trim();
+        const category = categoryInput.value.trim();
+        
+        if (text && category) {
+            quotes.push({ text, category });
+            textInput.value = '';
+            categoryInput.value = '';
+            showRandomQuote();
+            alert('Quote added successfully!');
+        } else {
+            alert('Please fill in both fields!');
+        }
+    });
+    
+    // Assemble the form
+    formContainer.appendChild(heading);
+    formContainer.appendChild(textInput);
+    formContainer.appendChild(categoryInput);
+    formContainer.appendChild(addButton);
+    
+    // Add the form to the body (or a specific container)
+    document.body.appendChild(formContainer);
 }
-
-
-// add quote from button
-
-function addQuote() {
-    // Get the values from the input fields
-    const text = document.getElementById('newQuoteText').value.trim();
-    const category = document.getElementById('newQuoteCategory').value.trim();
-
-    // Check if both fields are filled
-    // Validate
-    if (!text || !category) {
-        alert("Please fill both fields!");
-        return false;
-    }
-
-    // Add to array
-    quotes.push({ text, category });
-  
-    // Clear form
-    document.getElementById('newQuoteText').value = '';
-    document.getElementById('newQuoteCategory').value = '';
-  
-    // Show new quote
-     document.getElementById('quoteDisplay').innerHTML = `
-        <p>Added:</p>
-        <blockquote>"${text}"</blockquote>
-        <cite>— ${category}</cite>
-        `;
-  
-  return false; // Prevent form submission
-}
-
-
-
-
 
 // event listener for 'show new quote' button
 
