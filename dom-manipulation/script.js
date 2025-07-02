@@ -107,7 +107,7 @@ function exportQuotes() {
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'my-quotes.json';
+    a.download = 'quotes.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
