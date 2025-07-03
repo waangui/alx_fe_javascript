@@ -22,32 +22,72 @@ async function saveQuotes() {
 
 // Merge server & local quotes
 function mergeQuotes(localQuotes, serverQuotes) {
+    const conflicts = [];
     const merged = [...localQuotes];
     
     serverQuotes.forEach(serverQuote => {
-        const exists = localQuotes.some(localQuote => 
-            localQuote.text === serverQuote.text && 
-            localQuote.category === serverQuote.category
+        const existingIndex = merged.findIndex(localQuote => 
+            (localQuote.id && localQuote.id === serverQuote.id) ||
+            (localQuote.text === serverQuote.text && 
+             localQuote.category === serverQuote.category)
         );
         
-        if (!exists) {
+        
+        if (existingIndex === -1) {
+            // New quote from server
             merged.push(serverQuote);
+        } else {
+            // Conflict resolution (server takes precedence)
+            if (JSON.stringify(merged[existingIndex]) !== JSON.stringify(serverQuote)) {
+                conflicts.push({
+                    id: serverQuote.id || serverQuote.text+serverQuote.category,
+                    text: serverQuote.text,
+                    serverVersion: serverQuote,
+                    localVersion: merged[existingIndex]
+                });
+                merged[existingIndex] = serverQuote; // Server wins by default
+            }
         }
     });
     
-    return merged;
+    
+     return { mergedQuotes: merged, conflicts };
 }
+
+
 
 // Periodic sync function
 async function syncWithServer() {
-    const serverQuotes = await fetchQuotesFromServer();
-    quotes = mergeQuotes(quotes, serverQuotes);
-    saveQuotes();
-    populateCategories();
-    filterQuotes();
-    
-    // Schedule next sync
-    setTimeout(syncWithServer, 30000); // Sync every 30 seconds
+   try {
+        console.log("Starting sync...");
+        const serverQuotes = await fetchQuotesFromServer();
+        const { mergedQuotes, conflicts } = mergeQuotes(quotes, serverQuotes);
+        
+        // Only update if changes exist
+        if (JSON.stringify(mergedQuotes) !== JSON.stringify(quotes)) {
+            quotes = mergedQuotes;
+            saveQuotes();
+            
+            // Notify user
+            const message = serverQuotes.length > 0 
+                ? `Synced ${serverQuotes.length} update(s) from server`
+                : "No new updates from server";
+            
+            showSyncNotification(message, conflicts);
+            updateUI();
+        }
+        
+        // Update sync timestamp
+        lastSyncTimestamp = Date.now();
+        localStorage.setItem('lastSyncTimestamp', lastSyncTimestamp);
+        
+        // Schedule next sync
+        setTimeout(syncWithServer, SYNC_INTERVAL);
+        
+    } catch (error) {
+        console.error("Sync failed:", error);
+        setTimeout(syncWithServer, SYNC_INTERVAL); // Retry
+    }
 }
 
 // Add new quote
@@ -260,53 +300,188 @@ function filterQuotes() {
 // Server simulation 
 const API_URL = 'https://jsonplaceholder.typicode.com/posts'; // JSONPlaceholder
 const SERVER_DELAY = 2000; // 2 second delay 
+const SYNC_INTERVAL = 30000; // 30 seconds
+let lastSyncTimestamp = 0;
 
 
 // Simulate fetching quotes from server
 async function fetchQuotesFromServer() {
     try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, SERVER_DELAY));
+         const response = await fetch(`${SERVER_URL}?since=${lastSyncTimestamp}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
         
-        // In a real app, this would be: const response = await fetch(`${API_URL}/quotes`);
-        const mockResponse = {
-            data: [
-                { text: "Simulated server quote 1", category: "Server" },
-                { text: "Simulated server quote 2", category: "Inspiration" }
-            ]
-        };
-        
-        return mockResponse.data;
+        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        const data = await response.json();
+        return data.quotes || [];
     } catch (error) {
-        console.error("Server fetch error:", error);
+        console.error("Fetch error:", error);
+        showSyncNotification("Failed to sync with server");
         return [];
     }
 }
 
+
 // Simulate sending quotes to server
 async function postToServer(quotesToSend) {
     try {
-        await new Promise(resolve => setTimeout(resolve, SERVER_DELAY));
+      const response = await fetch(SERVER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+                quotes: quotesToSend
+                
+             })
+        });
         
-        // In a real app: await fetch(`${API_URL}/quotes`, { method: 'POST', body: JSON.stringify(quotesToSend) });
-        console.log("Simulated server update:", quotesToSend);
+        if (!response.ok) throw new Error('Server rejected update');
         return true;
     } catch (error) {
-        console.error("Server post error:", error);
+        console.error("Post error:", error);
+        showSyncNotification("Failed to update server");
         return false;
+    } 
+}
+
+function showSyncNotification(message, conflicts = []) {
+    const notification = document.getElementById('sync-notification');
+    const messageEl = document.getElementById('sync-message');
+    const conflictDiv = document.getElementById('conflict-resolution');
+    const choicesDiv = document.getElementById('conflict-choices');
+    
+    messageEl.textContent = message;
+    conflictDiv.style.display = conflicts.length ? 'block' : 'none';
+    choicesDiv.innerHTML = '';
+    
+    conflicts.forEach(conflict => {
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <p>${conflict.text}</p>
+            <button data-id="${conflict.id}" data-choice="server">Use Server Version</button>
+            <button data-id="${conflict.id}" data-choice="local">Keep My Version</button>
+        `;
+        choicesDiv.appendChild(div);
+    });
+    
+    notification.style.display = 'block';
+}
+
+// Initialize with proper headers
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing init code ...
+    
+    // Conflict resolution handlers
+    document.getElementById('dismiss-sync').addEventListener('click', () => {
+        document.getElementById('sync-notification').style.display = 'none';
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('#conflict-choices button[data-choice]')) {
+            handleConflictChoice(
+                e.target.dataset.id,
+                e.target.dataset.choice
+            );
+        }
+    });
+});
+
+function handleConflictChoice(quoteId, choice) {
+    const index = quotes.findIndex(q => 
+        (q.id || q.text+q.category) === quoteId
+    );
+    
+    if (index !== -1) {
+        if (choice === 'local') {
+            quotes[index].timestamp = Date.now(); // Mark as updated
+            saveQuotes();
+            updateUI();
+        }
+        
     }
 }
 
+// Notification system
+function showSyncNotification(message, conflicts = []) {
+    const notification = document.getElementById('sync-notification');
+    const messageEl = document.getElementById('sync-message');
+    const conflictDiv = document.getElementById('conflict-resolution');
+    const choicesDiv = document.getElementById('conflict-choices');
+    
+    messageEl.textContent = message;
+    conflictDiv.style.display = conflicts.length ? 'block' : 'none';
+    choicesDiv.innerHTML = '';
+    
+    conflicts.forEach(conflict => {
+        const conflictEl = document.createElement('div');
+        conflictEl.innerHTML = `
+            <p>Conflict found: "${conflict.text}"</p>
+            <button data-id="${conflict.id}" data-version="server">Use Server Version</button>
+            <button data-id="${conflict.id}" data-version="local">Keep Local Version</button>
+        `;
+        choicesDiv.appendChild(conflictEl);
+    });
+    
+    notification.style.display = 'block';
+}
+
+// Handle conflict resolution
+document.getElementById('dismiss-sync').addEventListener('click', () => {
+    document.getElementById('sync-notification').style.display = 'none';
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.matches('#conflict-choices button[data-version]')) {
+        const quoteId = e.target.dataset.id;
+        const version = e.target.dataset.version;
+        
+        const quoteIndex = quotes.findIndex(q => 
+            (q.id || q.text+q.category) === quoteId
+        );
+        
+        if (quoteIndex !== -1 && version === 'local') {
+            // Restore local version and update timestamp
+            quotes[quoteIndex].timestamp = Date.now();
+            saveQuotes();
+            updateUI();
+        }
+        
+        // Remove this conflict from UI
+        e.target.parentElement.remove();
+    }
+});
+
+
+
+
 // event listener for 'show new quote' button
 document.addEventListener('DOMContentLoaded', async () => {
+    // Load last sync time
+    lastSyncTimestamp = parseInt(localStorage.getItem('lastSyncTimestamp')) || 0;
+    
     document.getElementById('newQuote').addEventListener('click', showRandomQuote);
     createAddQuoteForm();
     showRandomQuote();
+    populateCategories(); 
+    filterQuotes();
+
 
      // Initial sync with server
     await syncWithServer();
 
+    // Set up periodic sync
+    setInterval(syncWithServer, SYNC_INTERVAL);
+});
+
+
+function updateUI() {
     populateCategories(); 
     filterQuotes();
     saveQuotes();
-});
+ } 
+

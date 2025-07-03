@@ -11,7 +11,7 @@
     <h1>Dynamic Quote Generator</h1>
 
     <div id="quoteDisplay"></div>
-    <button id="newQuote">Show New Quote</button>
+    <button id="newQuote">Show New Quote </button>
     <button id="exportButton">Export Quotes</button>
     
 
@@ -32,6 +32,29 @@
         <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
         <button onclick="addQuote()">Add Quote</button>
     </div> -->
+
+    <div id="sync-notification" style="display: none;">
+        <h3>Data Updated</h3>
+        <p id="sync-message"></p>
+
+        <div id="conflict-resolution" style="display: none;">
+            <p>Choose which version to keep:</p>
+            <div id="conflict-choices"></div>
+        </div>
+
+        <button id="dismiss-sync">Dismiss</button>
+    </div>
+
+    <div id="sync-notification">
+        <h3>Sync Notification</h3>
+        <p id="sync-message"></p>
+
+        <div id="conflict-resolution">
+        <div id="conflict-choices"></div>
+        </div>
+
+        <button id="dismiss-sync">Dismiss</button>
+    </div>
 
     <script src="script.js"></script>
 
