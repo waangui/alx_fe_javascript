@@ -57,7 +57,7 @@ function mergeQuotes(localQuotes, serverQuotes) {
 
 
 // Periodic sync function
-async function syncWithServer() {
+async function syncQuotes() {
    try {
         console.log("Starting sync...");
         const serverQuotes = await fetchQuotesFromServer();
@@ -82,11 +82,11 @@ async function syncWithServer() {
         localStorage.setItem('lastSyncTimestamp', lastSyncTimestamp);
         
         // Schedule next sync
-        setTimeout(syncWithServer, SYNC_INTERVAL);
+        setTimeout(syncQuotes, SYNC_INTERVAL);
         
     } catch (error) {
         console.error("Sync failed:", error);
-        setTimeout(syncWithServer, SYNC_INTERVAL); // Retry
+        setTimeout(syncQuotes, SYNC_INTERVAL); // Retry
     }
 }
 
@@ -472,10 +472,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
      // Initial sync with server
-    await syncWithServer();
+    await syncQuotes();
 
     // Set up periodic sync
-    setInterval(syncWithServer, SYNC_INTERVAL);
+    setInterval(syncQuotes, SYNC_INTERVAL);
 });
 
 
