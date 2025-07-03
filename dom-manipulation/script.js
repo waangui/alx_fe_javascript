@@ -8,12 +8,46 @@ let quotes = JSON.parse(localStorage.getItem('quotes')) || [
 ];
 
 // Save quotes to local storage
-function saveQuotes() {
+async function saveQuotes() {
     localStorage.setItem('quotes', JSON.stringify(quotes));
     const categoryFilter = document.getElementById('categoryFilter');
     if (categoryFilter){
         localStorage.setItem('lastCategoryFilter', categoryFilter.value);
     }
+
+    postToServer(quotes).then(success=> {
+        if (success) console.log("Quotes synced with server");
+    })
+}
+
+// Merge server & local quotes
+function mergeQuotes(localQuotes, serverQuotes) {
+    const merged = [...localQuotes];
+    
+    serverQuotes.forEach(serverQuote => {
+        const exists = localQuotes.some(localQuote => 
+            localQuote.text === serverQuote.text && 
+            localQuote.category === serverQuote.category
+        );
+        
+        if (!exists) {
+            merged.push(serverQuote);
+        }
+    });
+    
+    return merged;
+}
+
+// Periodic sync function
+async function syncWithServer() {
+    const serverQuotes = await fetchFromServer();
+    quotes = mergeQuotes(quotes, serverQuotes);
+    saveQuotes();
+    populateCategories();
+    filterQuotes();
+    
+    // Schedule next sync
+    setTimeout(syncWithServer, 30000); // Sync every 30 seconds
 }
 
 // Add new quote
@@ -223,12 +257,56 @@ function filterQuotes() {
     }
 }
 
+// Server simulation 
+const API_URL = 'https://jsonplaceholder.typicode.com/posts'; // JSONPlaceholder
+const SERVER_DELAY = 2000; // 2 second delay 
+
+
+// Simulate fetching quotes from server
+async function fetchFromServer() {
+    try {
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, SERVER_DELAY));
+        
+        // In a real app, this would be: const response = await fetch(`${API_URL}/quotes`);
+        const mockResponse = {
+            data: [
+                { text: "Simulated server quote 1", category: "Server" },
+                { text: "Simulated server quote 2", category: "Inspiration" }
+            ]
+        };
+        
+        return mockResponse.data;
+    } catch (error) {
+        console.error("Server fetch error:", error);
+        return [];
+    }
+}
+
+// Simulate sending quotes to server
+async function postToServer(quotesToSend) {
+    try {
+        await new Promise(resolve => setTimeout(resolve, SERVER_DELAY));
+        
+        // In a real app: await fetch(`${API_URL}/quotes`, { method: 'POST', body: JSON.stringify(quotesToSend) });
+        console.log("Simulated server update:", quotesToSend);
+        return true;
+    } catch (error) {
+        console.error("Server post error:", error);
+        return false;
+    }
+}
 
 // event listener for 'show new quote' button
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('newQuote').addEventListener('click', showRandomQuote);
+    createAddQuoteForm();
+    showRandomQuote();
 
-document.getElementById('newQuote').addEventListener('click', showRandomQuote);
-createAddQuoteForm();
-showRandomQuote();
-populateCategories(); 
-filterQuotes();
-saveQuotes();
+     // Initial sync with server
+    await syncWithServer();
+    
+    populateCategories(); 
+    filterQuotes();
+    saveQuotes();
+});
