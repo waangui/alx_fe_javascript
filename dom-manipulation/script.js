@@ -40,7 +40,7 @@ function mergeQuotes(localQuotes, serverQuotes) {
 
 // Periodic sync function
 async function syncWithServer() {
-    const serverQuotes = await fetchFromServer();
+    const serverQuotes = await fetchQuotesFromServer();
     quotes = mergeQuotes(quotes, serverQuotes);
     saveQuotes();
     populateCategories();
@@ -263,7 +263,7 @@ const SERVER_DELAY = 2000; // 2 second delay
 
 
 // Simulate fetching quotes from server
-async function fetchFromServer() {
+async function fetchQuotesFromServer() {
     try {
         // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, SERVER_DELAY));
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
      // Initial sync with server
     await syncWithServer();
-    
+
     populateCategories(); 
     filterQuotes();
     saveQuotes();
