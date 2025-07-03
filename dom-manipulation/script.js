@@ -71,7 +71,7 @@ async function syncQuotes() {
             // Notify user
             const message = serverQuotes.length > 0 
                 ? `Synced ${serverQuotes.length} update(s) from server`
-                : "No new updates from server";
+                : "Quotes synced with server!";
             
             showSyncNotification(message, conflicts);
             updateUI();
